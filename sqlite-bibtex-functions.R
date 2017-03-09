@@ -12,6 +12,7 @@ library(RSQLite)
 ## So I take some code for the cast and the idea of dividing and adding
 ## from the issue in github.
 
+failidx <- 1
 
 sqliteQuery1 <- "
 SELECT
@@ -283,8 +284,13 @@ combineFields <- function(x, field1, field2, tokenize) {
     ## place info of fields1 and field2 in a single field1, and remove
     ## field2
     pf1 <- getAField(x, field1)
-    pf2 <- getAField(x, field2)
     f1 <- gsub(paste0("^", field1, " = \\{"), "", x[pf1])
+    while (length(pf1)>0 && length(grep("\\},$",f1))==0 && length(grep("\\}$",f1))==0) {
+      x <- x[-pf1]
+      f1 <- paste(f1, x[pf1], sep = "\n")
+    } # this will change the size of x
+    
+    pf2 <- getAField(x, field2)
     f2 <- gsub(paste0("^", field2, " = \\{"), "", x[pf2])
 
     f1 <- gsub("\\},$", "", f1)
@@ -408,8 +414,19 @@ getFilesBib <- function(x) {
         ff <- gsub(cc, "", ff, fixed = TRUE)
     
     files <- strsplit(ff, ";")[[1]]
-    files <- vapply(files, function(x) gsub("^:", "/", x), "a")
-    files <- vapply(files, function(x) strsplit(x, ":")[[1]][1], "a")
+    # files <- vapply(files, function(x) gsub("^:", "/", x), "a")
+    # files <- vapply(files, function(x) strsplit(x, ":")[[1]][1], "a")
+    files <- vapply(files, function(x) gsub("^:", "", x), "a")
+    files <- vapply(files, function(x) gsub("\\$\\\\backslash\\$", "", x), "a")
+    files <- vapply(files, function(x) gsub(":pdf", "", x), "a")
+    files <- vapply(files, function(x) gsub(":docx", "", x), "a")
+    files <- vapply(files, function(x) gsub(":doc", "", x), "a")
+    files <- vapply(files, function(x) gsub(":pptx", "", x), "a")
+    files <- vapply(files, function(x) gsub(":ppt", "", x), "a")
+    files <- vapply(files, function(x) gsub(":caj", "", x), "a")
+    files <- vapply(files, function(x) gsub(":nh", "", x), "a")
+    files <- vapply(files, function(x) gsub(":kdh", "", x), "a")
+    files <- vapply(files, function(x) gsub(":tgz", "", x), "a")
     return(list(files = files, filepos = fpos))
 }
 
@@ -427,7 +444,7 @@ newFname <- function(bibtexkey, oldfilename, tmpdir, ranletters) {
                  paste(paste(sample(letters, ranletters,
                                     replace = TRUE)),
                        collapse = ""))
-    nn <- paste0(tmpdir, "/", nn)
+    nn <- paste0(tmpdir, "\\", nn)
     if(extension != "")
         return(paste0(nn, ".", extension))
     else
@@ -439,8 +456,10 @@ createNewFileField <- function(files, extensions) {
         stop("lengths file != extensions")
     head <- "file = {"
     fnopath <- vapply(files, justTheFile, "a")
-    fs <- paste0(fnopath, ":", files)
-    exts <- paste0(":", extensions)
+    # fs <- paste0(fnopath, ":", files)
+    # exts <- paste0(":", extensions)
+    fs <- fnopath
+    exts <- ""
     allfiles <- paste0(paste0(fs, exts), collapse = ";")
     return(paste0(head, allfiles, "}"))
 }
@@ -488,11 +507,35 @@ fixFilesSingleEntry <- function(bibentry,
             ## No longer gsub and replacing by escaped chars, as we now
             ## quote the path. But need to fix the \\& and \\_ that
             ## Mendeley inserted
+            
             oldpath <- gsub("\\&", "&", filesp$files[nfile], fixed = TRUE)
-            oldpath <- gsub("\\_", "_", oldpath, fixed = TRUE)
+            oldpath <- gsub("{&}", "&", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{u}}", "ú", oldpath, fixed = TRUE)
+            oldpath <- gsub("Maign{\\'{e}", "Maigné,", oldpath, fixed = TRUE)
+            oldpath <- gsub("Tenc{\\'{e}", "Tencé,", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{e}}", "é", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{e}", "é", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\`{e}}", "è", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{i}}", "í", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\^{e}}", "ê", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{a}}", "á", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\.{z}}", "z", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\~{n}}", "ñ", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\v{s}}", "s", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\o}", "ø", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\\"{o}}", "ö", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\\"{a}}", "ä", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\\"{u}}", "ü", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\\"{y}}", "ÿ", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\ldots}", ".", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\\"{O}}", "Ö", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{c}}", "c", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\'{c}", "c", oldpath, fixed = TRUE)
+            oldpath <- gsub("{\\_}", "_", oldpath, fixed = TRUE)
+            oldpath <- gsub("/", "\\", oldpath, fixed= TRUE)
             ## oldpath <- gsubTheCrap(filesp$files[nfile])
             
-            if( (nchar(f1) > maxlength) || grepl("[^a-zA-Z0-9.-]", f1) ) {
+            if( TRUE || (nchar(f1) > maxlength) || grepl("[^a-zA-Z0-9.-]", f1) ) {
                 filesp$files[nfile] <- newFname(bibkey, f1,
                                                 tmpdir,
                                                 ranletters)
@@ -501,11 +544,11 @@ fixFilesSingleEntry <- function(bibentry,
                 ## screw things up. And I can't use system2 either, for
                 ## some reason I just don't follow but cannot pursue. This
                 ## whole spaces thing really sucks.
-                cmd <- system(paste("cp", shQuote(oldpath), 
-                       filesp$files[nfile]), intern = FALSE)
-                if(cmd) {
-                    cat("\n Copying file failed for ", oldpath)
-                    warning("\n Copying file failed for ", oldpath)
+                cmd <- file.copy(from = oldpath, to = filesp$files[nfile])
+                if(cmd==FALSE) {
+                    cat("\n ", failidx , "Copying file failed for ", oldpath)
+                    # warning("\n Copying file failed for ", oldpath)
+                  failidx <<- failidx + 1
                 }
             } 
         }

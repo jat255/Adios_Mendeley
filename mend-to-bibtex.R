@@ -29,13 +29,13 @@
 
 
 ## Remember to empty the trash of mendeley
-MendeleySQL <- "mend.sqlite"
-BibTeXFile <- "library-fixed.bib"
-out <- "new-library.bib" ## the new bibtex file that will be created
-tmpFilePaths <- "/home/ramon/tmp/mend" ## A temporary directory for
+MendeleySQL <- "C:\\Users\\jat\\AppData\\Local\\Mendeley Ltd\\Mendeley Desktop\\jat255@gmail.com@www.mendeley.com.sqlite"
+BibTeXFile <- "all_documents.bib"
+out <- "all_documents_mend2bibtex_fixed.bib" ## the new bibtex file that will be created
+tmpFilePaths <- "C:\\tmp\\adios_mendeley" ## A temporary directory for
                                        ## placing renamed files.
 
-source("sqlite-bibtex-functions.R")
+debugSource("sqlite-bibtex-functions.R")
 
 
 con <- dbConnect(SQLite(), MendeleySQL)
@@ -62,8 +62,8 @@ bibfileFileFixed <- fixFileNames(bibfile2, tmpFilePaths)
 
 jabrefGr <- jabrefGroups(con, res)
 ## If you want to see what it looks like
-## write(file = "jabref-groups.txt",
-##       jabrefGr)
+write(file = "jabref-groups.txt",
+      jabrefGr)
 
 
 outFullBibTex(bibfileFileFixed, jabrefGr, out)
